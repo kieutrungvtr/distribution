@@ -4,7 +4,7 @@
     "type": "project",
     "require": {
         "laravel/horizon": "^5.24",
-        "vladimir-yuldashev/laravel-queue-rabbitmq": "^14.1"
+        "vladimir-yuldashev/laravel-queue-rabbitmq": "*"
     },
     "autoload": {
         "psr-4": {
