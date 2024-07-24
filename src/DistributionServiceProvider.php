@@ -23,6 +23,12 @@ class DistributionServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        
+        $this->app->bind('SYS_PATH', function ($app) {
+            return __DIR__.'/../';
+        });
+
+        $this->publishes([
+            __DIR__.'/../resources/views' => base_path('resources/views/vendor/distribution_queue'),
+        ], 'views');
     }
 }
