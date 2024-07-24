@@ -1,5 +1,5 @@
 {
-    "name": "sys/distrbution_queue",
+    "name": "plsys/distrbution_queue",
     "description": "Distribution queue with horizon, rabbitmq",
     "type": "project",
     "require": {
@@ -8,12 +8,13 @@
     },
     "autoload": {
         "psr-4": {
-            "Sys\\DistrbutionQueue\\": "src/"
+            "PLSys\\DistrbutionQueue\\": "src/"
         }
     },
     "authors": [
         {
-            "name": "Kieu Trung"
+            "name": "Kieu Trung",
+            "email": "kieutrungvtr@gmail.com"
         }
     ],
     "minimum-stability": "stable"

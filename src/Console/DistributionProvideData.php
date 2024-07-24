@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Console\Commands;
+namespace PLSys\DistrbutionQueue\Console;
 
 use App\Http\Requests\DistributionRequest;
 use App\Models\Sql\DesignImportRequests;

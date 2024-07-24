@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Console\Commands;
+namespace PLSys\DistrbutionQueue\Console;
 
 use App\Services\PushingService;
 use Illuminate\Console\Command;

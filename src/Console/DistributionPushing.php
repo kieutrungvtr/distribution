@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Console\Commands;
+namespace PLSys\DistrbutionQueue\Console;
 
 use App\Libs\ELogger;
 use App\Services\PushingService;
