@@ -35,5 +35,9 @@ class DistributionServiceProvider extends ServiceProvider
         $this->publishes([
             __DIR__.'/database/migrations' => database_path('migrations'),
         ], 'migrations');
+
+        $this->publishes([
+            __DIR__.'/config/distribution.php' => config_path('distribution.php'),
+        ], 'config');
     }
 }
