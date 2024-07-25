@@ -3,16 +3,20 @@
 
 namespace App\Jobs;
 
-use Exception;
+
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
-use App\Services\PushingService;
-use App\Models\Sql\Distributions;
-use App\Models\Sql\DistributionStates;
+use PLSys\DistrbutionQueue\App\Services\PushingService;
+use PLSys\DistrbutionQueue\App\Models\Sql\Distributions;
+use PLSys\DistrbutionQueue\App\Models\Sql\DistributionStates;
+use Exception;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Carbon\Carbon;
 
 class {$className} implements ShouldQueue
 {
