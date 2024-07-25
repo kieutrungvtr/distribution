@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Repositories\Sql;
+namespace PLSys\DistrbutionQueue\App\Repositories\Sql;
 
-use App\Models\Sql\Distributions;
-use App\Models\Sql\DistributionStates;
-use App\Repositories\BaseSqlRepository;
+use PLSys\DistrbutionQueue\App\Models\Sql\Distributions;
+use PLSys\DistrbutionQueue\App\Models\Sql\DistributionStates;
+use PLSys\DistrbutionQueue\App\Repositories\BaseSqlRepository;
 use Exception;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Response;

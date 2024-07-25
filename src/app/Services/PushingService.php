@@ -1,17 +1,17 @@
 <?php
 
-namespace App\Services;
+namespace PLSys\DistrbutionQueue\App\Services;
 
-use App\Http\Requests\DistributionRequest;
-use App\Models\Sql\Distributions;
-use App\Models\Sql\DistributionStates;
-use App\Repositories\Sql\DistributionRepository;
-use App\Repositories\Sql\DistributionStatesRepository;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use PLSys\DistrbutionQueue\App\Http\Requests\DistributionRequest;
+use PLSys\DistrbutionQueue\App\Models\Sql\Distributions;
+use PLSys\DistrbutionQueue\App\Models\Sql\DistributionStates;
+use PLSys\DistrbutionQueue\App\Repositories\Sql\DistributionRepository;
+use PLSys\DistrbutionQueue\App\Repositories\Sql\DistributionStatesRepository;
 
 class PushingService
 {

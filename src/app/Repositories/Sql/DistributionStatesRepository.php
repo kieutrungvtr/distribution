@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Repositories\Sql;
+namespace PLSys\DistrbutionQueue\App\Repositories\Sql;
 
 
-use App\Models\Sql\DistributionStates;
-use App\Repositories\BaseSqlRepository;
+use PLSys\DistrbutionQueue\App\Models\Sql\DistributionStates;
+use PLSys\DistrbutionQueue\App\Repositories\BaseSqlRepository;
 use Illuminate\Support\Facades\DB;
 
 class DistributionStatesRepository extends BaseSqlRepository

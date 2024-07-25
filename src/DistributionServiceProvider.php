@@ -13,8 +13,9 @@ class DistributionServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->commands([
-            Console\DistributionCleanUp::class,
             Console\DistributionCreateJob::class,
+            Console\DistributionPushing::class,
+            Console\DistributionCleanUp::class
         ]);
     }
 

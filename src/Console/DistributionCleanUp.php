@@ -2,7 +2,7 @@
 
 namespace PLSys\DistrbutionQueue\Console;
 
-use App\Services\PushingService;
+use PLSys\DistrbutionQueue\App\Services\PushingService;
 use Illuminate\Console\Command;
 
 class DistributionCleanUp extends Command

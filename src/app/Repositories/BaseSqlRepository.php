@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Repositories;
+namespace PLSys\DistrbutionQueue\App\Repositories;
 
 abstract class BaseSqlRepository
 {

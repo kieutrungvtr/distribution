@@ -4,7 +4,7 @@
  *          !!! Do not touch or modify !!!
  */
 
-namespace App\Models\Sql;
+namespace PLSys\DistrbutionQueue\App\Models\Sql;
 
 use App\Models\BaseModel;
 #---- Begin package usage -----#

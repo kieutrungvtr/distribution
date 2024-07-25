@@ -2,10 +2,10 @@
 
 namespace PLSys\DistrbutionQueue\Console;
 
-use App\Http\Requests\DistributionRequest;
 use App\Models\Sql\DesignImportRequests;
-use App\Models\Sql\Distributions;
-use App\Services\PushingService;
+use PLSys\DistrbutionQueue\App\Http\Requests\DistributionRequest;
+use PLSys\DistrbutionQueue\App\Models\Sql\Distributions;
+use PLSys\DistrbutionQueue\App\Services\PushingService;
 use Illuminate\Console\Command;
 
 class DistributionProvideData extends Command
@@ -29,14 +29,14 @@ class DistributionProvideData extends Command
      */
     public function handle()
     {
-        $designRequest = DesignImportRequests::where(
+        $data = new DistributionRequest();
+        $distributions = DesignImportRequests::where(
             [
                 DesignImportRequests::COL_STATUS => 'initial'
             ]
         )->take(10)->get();
-        $data = new DistributionRequest();
-        foreach ($designRequest as $key => $value) {
-            $requestId = $value->{DesignImportRequests::COL_ID};
+        foreach ($distributions as $distribution) {
+            $requestId = $distribution->{DesignImportRequests::COL_ID};
             $payload = null;
             $jobName = "PullDesignJob";
             $tmp['distribution_request'][] = [
