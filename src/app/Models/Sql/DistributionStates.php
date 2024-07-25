@@ -6,7 +6,7 @@
 
 namespace PLSys\DistrbutionQueue\App\Models\Sql;
 
-use App\Models\BaseModel;
+use PLSys\DistrbutionQueue\App\Models\BaseModel;
 #---- Begin package usage -----#
 
 #---- Ended package usage -----#

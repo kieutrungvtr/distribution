@@ -46,7 +46,7 @@ class DistributionCreateJob extends Command
     {
         $view = view('vendor.distribution-queue.job');
         $view->className = sprintf(
-            'Distribution%sJob',
+            '%sJob',
             $this->argument('job')
         );;
         $content = $view->render();

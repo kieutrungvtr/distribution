@@ -1,7 +1,7 @@
 <?php
 
 
-namespace App\Models;
+namespace PLSys\DistrbutionQueue\App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 

@@ -43,10 +43,10 @@ class DistributionRepository extends BaseSqlRepository
             Distributions::COL_DISTRIBUTION_JOB_NAME,
         )
         ->get()
-        ->groupBy(Distributions::COL_DISTRIBUTION_REQUEST_ID)
-        ->map(function($value) use ($limit) {
-            return $value->take($limit);
-        });
+        ->groupBy(Distributions::COL_DISTRIBUTION_REQUEST_ID);
+        // ->map(function($value) use ($limit) {
+        //     return $value->take($    );
+        // });
 
         return $data;
     }

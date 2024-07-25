@@ -30,22 +30,22 @@ class DistributionProvideData extends Command
     public function handle()
     {
         $data = new DistributionRequest();
-        $distributions = DesignImportRequests::where(
-            [
-                DesignImportRequests::COL_STATUS => 'initial'
-            ]
-        )->take(10)->get();
-        foreach ($distributions as $distribution) {
-            $requestId = $distribution->{DesignImportRequests::COL_ID};
-            $payload = null;
-            $jobName = "PullDesignJob";
-            $tmp['distribution_request'][] = [
-                Distributions::COL_DISTRIBUTION_REQUEST_ID => $requestId,
-                Distributions::COL_DISTRIBUTION_PAYLOAD => $payload ?? '{}',
-                Distributions::COL_DISTRIBUTION_JOB_NAME => $jobName,
-            ];
-        }
-        $data = $data->merge($tmp);
+        // $distributions = DesignImportRequests::where(
+        //     [
+        //         DesignImportRequests::COL_STATUS => 'initial'
+        //     ]
+        // )->take(10)->get();
+        // foreach ($distributions as $distribution) {
+        //     $requestId = $distribution->{DesignImportRequests::COL_ID};
+        //     $payload = null;
+        //     $jobName = "PullDesignJob";
+        //     $tmp['distribution_request'][] = [
+        //         Distributions::COL_DISTRIBUTION_REQUEST_ID => $requestId,
+        //         Distributions::COL_DISTRIBUTION_PAYLOAD => $payload ?? '{}',
+        //         Distributions::COL_DISTRIBUTION_JOB_NAME => $jobName,
+        //     ];
+        // }
+        // $data = $data->merge($tmp);
         $pushingService = new PushingService();
         $pushingService->init($data);
     }

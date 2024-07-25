@@ -6,7 +6,7 @@
 
 namespace PLSys\DistrbutionQueue\App\Models\Sql;
 
-use App\Models\BaseModel;
+use PLSys\DistrbutionQueue\App\Models\BaseModel;
 #---- Begin package usage -----#
 use Illuminate\Database\Eloquent\Relations\HasMany;
 #---- Ended package usage -----#
