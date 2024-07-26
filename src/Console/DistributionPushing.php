@@ -40,7 +40,7 @@ class DistributionPushing extends Command
         if ($sync) {
             $pushingService->optionSync($sync);
         }
-        $res = $pushingService->process($jobName, $batch);
+        $pushingService->process($jobName, $batch);
     }
 
 }

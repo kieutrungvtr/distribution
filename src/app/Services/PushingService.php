@@ -19,8 +19,6 @@ class PushingService
 
     private $distributionStateRepository;
 
-    private $quota = 4;
-
     /**
      * Flag support process exception case: break internet, sever die,...
      */
@@ -105,8 +103,9 @@ class PushingService
         $itemPushed = $this->distributionRepository->countByStatus(
             DistributionStates::DISTRIBUTION_STATES_PUSHED
         );
-        if ($itemPushed >= $this->quota) {
-            return Response::make("Over quota $this->quota", 406);
+        $quota = intval(config('distribution.quota'));
+        if ($itemPushed >= $quota) {
+            return Response::make("Over quota $quota", 406);
         }
         if ($this->backLogFlag) {
             $dataGroupById = $this->distributionRepository->searchBackLog(

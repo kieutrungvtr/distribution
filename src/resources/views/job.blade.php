@@ -32,10 +32,10 @@ class {$className} implements ShouldQueue
         \$this->data = \$data;
     }
 
-    public function middleware()
-    {
-        return [(new WithoutOverlapping(\$this->data[Distributions::COL_DISTRIBUTION_ID]))->dontRelease()];
-    }
+    // public function middleware()
+    // {
+    //     return [(new WithoutOverlapping(\$this->data[Distributions::COL_DISTRIBUTION_ID]))->dontRelease()];
+    // }
 
     /**
      * Execute the job.
