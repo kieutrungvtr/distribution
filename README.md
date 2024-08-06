@@ -60,6 +60,7 @@ php artisan vendor:publish --provider="PLSys\DistrbutionQueue\DistributionServic
 php artisan migrate
 ```
 2. Create `DistributionPullDesignProvideDataCommand` class and `PullDesignJob` class.
+> Note: Queue name will be base on job name. Ex: Job name is PullDesignJob => Queue name: pull_design.
 ```
 php artisan distribution:create-job PullDesign
 ```
