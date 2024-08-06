@@ -88,3 +88,54 @@ install Horizon and then set `RABBITMQ_WORKER` to `horizon`.
     // ...    
 ],
 ```
+Config:
+```
+'defaults' => [
+        'supervisor-pull-design' => [
+            'connection' => 'rabbitmq',
+            'queue' => 'pull_design',
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'time',
+            'maxProcesses' => env('HORIZON_WORKER_MAX_PROCESS', 10),
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 128,
+            'tries' => env('HORIZON_WORKER_TRIES', 3),
+            'timeout' => env('HORIZON_WORKER_TIME_OUT', 240),
+            'nice' => 0,
+        ],
+        'supervisor-pull-product' => [
+            'connection' => 'rabbitmq',
+            'queue' => 'pull_product',
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'time',
+            'maxProcesses' => env('HORIZON_WORKER_MAX_PROCESS', 10),
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 128,
+            'tries' => env('HORIZON_WORKER_TRIES', 3),
+            'timeout' => env('HORIZON_WORKER_TIME_OUT', 240),
+            'nice' => 0,
+        ],
+    ],
+
+    'environments' => [
+        'production' => [
+            'supervisor-pull-design' => [
+                'minProcesses' => env('HORIZON_WORKER_MIN_PROCESS', 1),
+                'maxProcesses' => env('HORIZON_WORKER_MAX_PROCESS', 10),
+            ]
+        ],
+
+        'local' => [
+            'supervisor-pull-design' => [
+                'minProcesses' => env('HORIZON_WORKER_MIN_PROCESS', 1),
+                'maxProcesses' => env('HORIZON_WORKER_MAX_PROCESS', 10),
+            ],
+            'supervisor-pull-product' => [
+                'minProcesses' => env('HORIZON_WORKER_MIN_PROCESS', 1),
+                'maxProcesses' => env('HORIZON_WORKER_MAX_PROCESS', 10),
+            ]
+        ],
+    ],
+```
