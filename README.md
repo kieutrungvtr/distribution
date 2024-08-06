@@ -36,6 +36,11 @@ Config to `config/distribution.php`:
 
 > This is the minimal config for the Distribution queue to work.
 
+Add service provider: `config/app.php`
+```
+PLSys\DistrbutionQueue\DistributionServiceProvider::class
+```
+
 Vendor publish:
 
 ```
