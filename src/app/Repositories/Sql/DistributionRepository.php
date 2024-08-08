@@ -99,6 +99,7 @@ class DistributionRepository extends BaseSqlRepository
             $query->whereIn(
                 DistributionStates::COL_DISTRIBUTION_STATE_VALUE,
                 [
+                    DistributionStates::DISTRIBUTION_STATES_FAILED,
                     DistributionStates::DISTRIBUTION_STATES_COMPLETED
                 ]
             );

@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('distributions', function (Blueprint $table) {
             $table->bigIncrements('distribution_id');
-            $table->unsignedInteger('distribution_request_id');
+            $table->unsignedBigInteger('distribution_request_id');
             $table->longText('distribution_payload');
             $table->text('distribution_job_name');
             $table->tinyInteger('distribution_tries')->default(0);
@@ -21,6 +21,7 @@ return new class extends Migration
             $table->unsignedInteger('distribution_created_by')->default(0);
             $table->timestamp('distribution_created_at');
             $table->timestamp('distribution_updated_at')->useCurrent();
+            $table->timestamp('distribution_deleted_at')->nullable();
         });
 
         Schema::create('distribution_states', function (Blueprint $table) {
@@ -31,6 +32,7 @@ return new class extends Migration
             $table->longText('distribution_state_exception')->nullable();
             $table->timestamp('distribution_state_created_at');
             $table->timestamp('distribution_state_updated_at')->useCurrent();
+            $table->timestamp('distribution_state_deleted_at')->nullable();
 
             $table->foreign('fk_distribution_id')->references('distribution_id')->on('distributions');
         });
