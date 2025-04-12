@@ -101,20 +101,20 @@ class PushingService
     public function process($jobName, $batch = 10, $backlogTries = 3, $backlogTimeRange = 1)
     {
         $itemPushed = $this->distributionRepository->countByStatus(
-            DistributionStates::DISTRIBUTION_STATES_PUSHED
+            DistributionStates::DISTRIBUTION_STATES_PUSHED,
+            $jobName
         );
         $quota = intval(config('distribution.quota'));
-        if ($itemPushed >= $quota) {
-            return Response::make("Over quota $quota", 406);
+        if (!$this->optionSync && $itemPushed >= $quota) {
+            return Response::make("Job $jobName over quota $quota", 406);
         }
         if ($this->backLogFlag) {
-            $dataGroupById = $this->distributionRepository->searchBackLog(
+            $distributions = $this->distributionRepository->searchBackLog(
                 $jobName, $this->optionRequestId, $backlogTries, $backlogTimeRange, $batch
             );
         } else {
-            $dataGroupById = $this->distributionRepository->search($jobName, $this->optionRequestId, $batch);
+            $distributions = $this->distributionRepository->search($jobName, $this->optionRequestId, $batch);
         }
-        $distributions = Arr::flatten($dataGroupById->toArray(), 1);
         if (count($distributions) == 0) {
             return Response::make("Have not request to be process", 406);
         }
@@ -131,11 +131,18 @@ class PushingService
                 }
                 $this->pre($distribution[Distributions::COL_DISTRIBUTION_ID]);
                 if ($this->backLogFlag) {
+                    $distributionId = $distribution[Distributions::COL_DISTRIBUTION_ID];
                     $currTries = $distribution[Distributions::COL_DISTRIBUTION_TRIES];
+                    $distributionIdsToUpdate[] = $distributionId;
+                    $distributionTriesMap[$distributionId] = $currTries + 1;
+                }
+            }
+            if ($this->backLogFlag && !empty($distributionIdsToUpdate)) {
+                foreach ($distributionIdsToUpdate as $id) {
                     $this->distributionRepository->update(
-                        $distribution[Distributions::COL_DISTRIBUTION_ID],
+                        $id,
                         [
-                            Distributions::COL_DISTRIBUTION_TRIES =>  $currTries + 1
+                            Distributions::COL_DISTRIBUTION_TRIES => $distributionTriesMap[$id]
                         ]
                     );
                 }

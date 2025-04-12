@@ -45,11 +45,13 @@ class DistributionRepository extends BaseSqlRepository
         )
         ->get()
         ->groupBy(Distributions::COL_DISTRIBUTION_REQUEST_ID)
-        ->map(function($value) use ($limit) {
+        ->flatMap(function($value) use ($limit) {
             return $value->take($limit);
-        });
+        })
+        ->shuffle()
+        ->values();
 
-        return $data;
+        return $data->toArray();
     }
 
     public function searchBackLog($jobName, $requestId = null, $tries = 3, $timeRange = 1, $limit = 10)
@@ -85,27 +87,38 @@ class DistributionRepository extends BaseSqlRepository
         )
         ->get()
         ->groupBy(Distributions::COL_DISTRIBUTION_REQUEST_ID)
-        ->map(function($value) use ($limit) {
+        ->flatMap(function($value) use ($limit) {
             return $value->take($limit);
-        });
-        return $data;
+        })
+        ->shuffle()
+        ->values();
+        
+        return $data->toArray();
     }
 
-    public function countByStatus($status)
+    public function countByStatus($status, $jobName = null)
     {
-        $data = Distributions::whereHas('states', function ($query) use ($status) {
-            $query->where(DistributionStates::COL_DISTRIBUTION_STATE_VALUE, $status);
-        })->whereDoesntHave('states', function ($query) {
-            $query->whereIn(
-                DistributionStates::COL_DISTRIBUTION_STATE_VALUE,
-                [
-                    DistributionStates::DISTRIBUTION_STATES_FAILED,
-                    DistributionStates::DISTRIBUTION_STATES_COMPLETED
-                ]
-            );
-        })->get();
+        $query = DB::table('distributions as d')
+            ->join('distribution_states as ds1', function ($join) use ($status) {
+                $join->on('ds1.fk_distribution_id', '=', 'd.distribution_id')
+                    ->where('ds1.distribution_state_value', '=', $status);
+            })
+            ->leftJoin('distribution_states as ds2', function ($join) {
+                $join->on('ds2.fk_distribution_id', '=', 'd.distribution_id')
+                    ->whereIn(
+                        'ds2.distribution_state_value',
+                        [
+                            DistributionStates::DISTRIBUTION_STATES_FAILED,
+                            DistributionStates::DISTRIBUTION_STATES_COMPLETED
+                        ]
+                    );
+            })
+            ->whereNull('ds2.distribution_state_id');
 
-        return $data->count();
+        if ($jobName) {
+            $query->where('d.distribution_job_name', $jobName);
+        }
+        return $query->count();
     }
 
     public function initDistributionData($distributions)
