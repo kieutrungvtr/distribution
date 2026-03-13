@@ -97,9 +97,31 @@ class DistributionStates extends BaseModel
     const DISTRIBUTION_STATES_FAILED = 'failed';
     const DISTRIBUTION_STATES_COMPLETED = 'completed';
 
+    const ALL_STATES = [
+        self::DISTRIBUTION_STATES_INIT,
+        self::DISTRIBUTION_STATES_PUSHED,
+        self::DISTRIBUTION_STATES_PROCESSING,
+        self::DISTRIBUTION_STATES_FAILED,
+        self::DISTRIBUTION_STATES_COMPLETED,
+    ];
+
+    const EXCLUDED_FROM_SEARCH = [
+        self::DISTRIBUTION_STATES_PUSHED,
+        self::DISTRIBUTION_STATES_PROCESSING,
+        self::DISTRIBUTION_STATES_COMPLETED,
+        self::DISTRIBUTION_STATES_FAILED,
+    ];
+
+    const ACTIVE_STATES = [
+        self::DISTRIBUTION_STATES_INIT,
+        self::DISTRIBUTION_STATES_PUSHED,
+        self::DISTRIBUTION_STATES_PROCESSING,
+        self::DISTRIBUTION_STATES_FAILED,
+    ];
+
     public function distributions()
     {
-        return $this->belongsTo(Distributions::class, 'distribution_id', 'fk_distribution_id');
+        return $this->belongsTo(Distributions::class, 'fk_distribution_id', 'distribution_id');
     }
     #---- Ended custom code -----#
 }

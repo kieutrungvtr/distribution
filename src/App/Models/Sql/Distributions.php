@@ -9,6 +9,7 @@ namespace PLSys\DistrbutionQueue\App\Models\Sql;
 use PLSys\DistrbutionQueue\App\Models\BaseModel;
 #---- Begin package usage -----#
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 #---- Ended package usage -----#
 
 class Distributions extends BaseModel
@@ -81,9 +82,14 @@ class Distributions extends BaseModel
     /**
      * @var string
      */
+    const COL_DISTRIBUTION_CURRENT_STATE = 'distribution_current_state';
+
+    /**
+     * @var string
+     */
     const COL_DISTRIBUTION_UPDATED_AT = 'distribution_updated_at';
 
-    
+
 
     /**
      * @const string
@@ -96,6 +102,8 @@ class Distributions extends BaseModel
         self::COL_DISTRIBUTION_PAYLOAD,
         self::COL_DISTRIBUTION_JOB_NAME,
         self::COL_DISTRIBUTION_TRIES,
+        self::COL_DISTRIBUTION_PRIORITY,
+        self::COL_DISTRIBUTION_CURRENT_STATE,
         self::COL_DISTRIBUTION_CREATED_AT,
         self::COL_DISTRIBUTION_UPDATED_AT
     ];
@@ -108,6 +116,12 @@ class Distributions extends BaseModel
     public function states(): HasMany
     {
         return $this->hasMany(DistributionStates::class, DistributionStates::COL_FK_DISTRIBUTION_ID);
+    }
+
+    public function latestState(): HasOne
+    {
+        return $this->hasOne(DistributionStates::class, DistributionStates::COL_FK_DISTRIBUTION_ID)
+                     ->latestOfMany(DistributionStates::COL_DISTRIBUTION_STATE_ID);
     }
     #---- Ended custom code -----#
 }

@@ -33,7 +33,7 @@ class DistributionPushing extends Command
         $requestId = $this->option('request_id') ?? null;
         $sync = $this->option('sync') ?? null;
         $batch = intval(config('distribution.batch'));
-        $pushingService = new PushingService();
+        $pushingService = app(PushingService::class);
         if ($requestId) {
             $pushingService->optionRequestId($requestId);
         }

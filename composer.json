@@ -1,14 +1,25 @@
 {
     "name": "plsys/distrbution-queue",
     "description": "Distribution queue with horizon, rabbitmq",
-    "type": "project",
+    "type": "library",
     "require": {
-        "laravel/horizon": "^5.24",
+        "laravel/horizon": "^5.24|^6.0",
         "vladimir-yuldashev/laravel-queue-rabbitmq": "*"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^9.0",
+        "phpunit/phpunit": "^11.0",
+        "mockery/mockery": "^1.6",
+        "fakerphp/faker": "^1.23"
     },
     "autoload": {
         "psr-4": {
             "PLSys\\DistrbutionQueue\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "PLSys\\DistrbutionQueue\\Tests\\": "src/tests/"
         }
     },
     "authors": [
@@ -17,5 +28,12 @@
             "email": "kieutrungvtr@gmail.com"
         }
     ],
+    "extra": {
+        "laravel": {
+            "providers": [
+                "PLSys\\DistrbutionQueue\\DistributionServiceProvider"
+            ]
+        }
+    },
     "minimum-stability": "stable"
 }

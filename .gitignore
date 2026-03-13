@@ -1,0 +1,33 @@
+/vendor/
+composer.lock
+.phpunit.result.cache
+.phpunit.cache/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+
+# Laravel / src
+/src/vendor/
+/src/node_modules/
+/src/.env
+/src/storage/
+/src/bootstrap/cache/
+
+# Example project
+/example/vendor/
+/example/node_modules/
+/example/.env
+/example/storage/
+/example/bootstrap/cache/
+/example/database/database.sqlite
