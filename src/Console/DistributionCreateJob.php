@@ -15,7 +15,7 @@ class DistributionCreateJob extends Command
     {
         $commandPath = app()->basePath() . '/app/Console/Commands';
         $this->info('Creating command');
-        self::createComamnd($commandPath);
+        self::createCommand($commandPath);
         $this->info('Create command completed');
         
         $this->info(PHP_EOL);
@@ -26,7 +26,7 @@ class DistributionCreateJob extends Command
         $this->info('Create job completed');
     }
 
-    private function createComamnd($path)
+    private function createCommand($path)
     {
         $job = $this->argument('job');
         $view = view('vendor.distribution-queue.command');

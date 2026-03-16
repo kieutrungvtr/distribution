@@ -11,7 +11,7 @@ class DistributionRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        return true;
     }
 
     /**
@@ -23,8 +23,8 @@ class DistributionRequest extends FormRequest
         return [
             'distribution_request' => 'required|array|min:1',
             'distribution_request.*.distribution_request_id' => 'required',
-            'distribution_request.*.distribution_job_name' => 'required'
-
+            'distribution_request.*.distribution_job_name' => 'required',
+            'distribution_request.*.distribution_priority' => 'nullable|integer|min:0|max:255'
         ];
     }
 }

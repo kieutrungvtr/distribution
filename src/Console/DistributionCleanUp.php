@@ -50,7 +50,7 @@ class DistributionCleanUp extends Command
             return 0;
         }
         $batch = intval(config('distribution.batch'));
-        $pushingService = new PushingService();
+        $pushingService = app(PushingService::class);
         $pushingService->backlogFlag(true);
         $pushingService->process($job, $batch, $tries, $timeRange);
     }

@@ -15,13 +15,17 @@ return new class extends Migration
             $table->bigIncrements('distribution_id');
             $table->unsignedBigInteger('distribution_request_id');
             $table->longText('distribution_payload');
-            $table->text('distribution_job_name');
+            $table->string('distribution_job_name', 255);
             $table->tinyInteger('distribution_tries')->default(0);
             $table->unsignedTinyInteger('distribution_priority')->default(0);
             $table->unsignedInteger('distribution_created_by')->default(0);
             $table->timestamp('distribution_created_at');
             $table->timestamp('distribution_updated_at')->useCurrent();
             $table->timestamp('distribution_deleted_at')->nullable();
+
+            $table->index('distribution_job_name', 'idx_dist_job_name');
+            $table->index(['distribution_priority', 'distribution_created_at'], 'idx_dist_priority_created');
+            $table->index('distribution_request_id', 'idx_dist_request_id');
         });
 
         Schema::create('distribution_states', function (Blueprint $table) {
@@ -35,6 +39,9 @@ return new class extends Migration
             $table->timestamp('distribution_state_deleted_at')->nullable();
 
             $table->foreign('fk_distribution_id')->references('distribution_id')->on('distributions');
+
+            $table->index(['fk_distribution_id', 'distribution_state_id'], 'idx_ds_fk_id');
+            $table->index(['fk_distribution_id', 'distribution_state_value'], 'idx_ds_fk_value');
         });
     }
 
@@ -43,7 +50,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('distributions');
         Schema::dropIfExists('distribution_states');
+        Schema::dropIfExists('distributions');
     }
 };
