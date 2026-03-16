@@ -18,6 +18,7 @@ class DistributionWork extends Command
                             {--sleep=5 : Seconds to wait between cycles}
                             {--tries=3 : Max retry attempts for failed jobs}
                             {--range=1 : Hours before retrying a failed job}
+                            {--auto-retry : Enable automatic retry of failed jobs (default: from config)}
                             {--memory= : Memory limit in MB (default from config)}
                             {--once : Run one cycle then exit}';
 
@@ -35,6 +36,7 @@ class DistributionWork extends Command
         $sleep = (int) ($this->option('sleep') ?? config('distribution.worker.sleep', 5));
         $tries = (int) ($this->option('tries') ?? config('distribution.worker.tries', 3));
         $range = (int) ($this->option('range') ?? config('distribution.worker.range', 1));
+        $autoRetry = $this->option('auto-retry') ?: config('distribution.worker.auto_retry', false);
         $once  = $this->option('once');
         $batch = (int) config('distribution.batch');
         $workerId = $this->option('id');
@@ -56,7 +58,7 @@ class DistributionWork extends Command
                 $this->coordinator->heartbeat();
             }
 
-            $this->cycle($batch, $tries, $range, $cache);
+            $this->cycle($batch, $tries, $range, $autoRetry, $cache);
 
             if ($once) {
                 break;
@@ -80,7 +82,7 @@ class DistributionWork extends Command
         $this->info('[' . Carbon::now()->toDateTimeString() . '] Distribution worker stopped.');
     }
 
-    private function cycle(int $batch, int $tries, int $range, DistributionCache $cache): void
+    private function cycle(int $batch, int $tries, int $range, bool $autoRetry, DistributionCache $cache): void
     {
         $repo = app(DistributionRepository::class);
 
@@ -121,13 +123,15 @@ class DistributionWork extends Command
                 $this->line("[$timestamp] [PUSH]  $jobName: " . $response->getContent());
             }
 
-            // Retry failed items
-            $retryService = app(PushingService::class);
-            $retryService->backlogFlag(true);
-            $retryResponse = $retryService->process($jobName, $batch, $tries, $range);
+            // Retry failed items (only when explicitly enabled)
+            if ($autoRetry) {
+                $retryService = app(PushingService::class);
+                $retryService->backlogFlag(true);
+                $retryResponse = $retryService->process($jobName, $batch, $tries, $range);
 
-            if ($retryResponse->getStatusCode() === 200) {
-                $this->line("[$timestamp] [RETRY] $jobName: " . $retryResponse->getContent());
+                if ($retryResponse->getStatusCode() === 200) {
+                    $this->line("[$timestamp] [RETRY] $jobName: " . $retryResponse->getContent());
+                }
             }
         }
     }

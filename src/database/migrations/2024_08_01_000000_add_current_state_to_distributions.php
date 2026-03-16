@@ -30,12 +30,15 @@ return new class extends Migration
                 )'),
             ]);
 
-        // Composite index — MySQL needs prefix length for TEXT column, SQLite does not
+        // Composite indexes for common query patterns
         $driver = Schema::getConnection()->getDriverName();
         if ($driver === 'sqlite') {
             DB::statement('CREATE INDEX idx_dist_current_state_job ON distributions(distribution_current_state, distribution_job_name)');
+            DB::statement('CREATE INDEX idx_dist_state_job_priority_created ON distributions(distribution_current_state, distribution_job_name, distribution_priority DESC, distribution_created_at ASC)');
         } else {
             DB::statement('CREATE INDEX idx_dist_current_state_job ON distributions(distribution_current_state, distribution_job_name(255))');
+            // Covering index for buildCandidates ORDER BY — eliminates filesort at scale
+            DB::statement('CREATE INDEX idx_dist_state_job_priority_created ON distributions(distribution_current_state, distribution_job_name(100), distribution_priority DESC, distribution_created_at ASC)');
         }
     }
 
@@ -44,8 +47,10 @@ return new class extends Migration
         $driver = Schema::getConnection()->getDriverName();
         if ($driver === 'sqlite') {
             DB::statement('DROP INDEX IF EXISTS idx_dist_current_state_job');
+            DB::statement('DROP INDEX IF EXISTS idx_dist_state_job_priority_created');
         } else {
             DB::statement('DROP INDEX idx_dist_current_state_job ON distributions');
+            DB::statement('DROP INDEX idx_dist_state_job_priority_created ON distributions');
         }
         Schema::table('distributions', function (Blueprint $table) {
             $table->dropColumn('distribution_current_state');

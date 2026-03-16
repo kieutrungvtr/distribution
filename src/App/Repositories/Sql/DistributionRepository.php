@@ -20,159 +20,75 @@ class DistributionRepository extends BaseSqlRepository
 
     public function search($jobName, $requestId = null, $globalLimit = PHP_INT_MAX)
     {
-        $where = [
-            Distributions::COL_DISTRIBUTION_JOB_NAME => $jobName,
-            Distributions::COL_DISTRIBUTION_CURRENT_STATE => DistributionStates::DISTRIBUTION_STATES_INIT,
-        ];
-        if ($requestId) {
-            $where[Distributions::COL_DISTRIBUTION_REQUEST_ID] = $requestId;
-        }
-        $data = Distributions::where($where)
-        ->orderBy(Distributions::COL_DISTRIBUTION_PRIORITY, 'DESC')
-        ->orderBy(Distributions::COL_DISTRIBUTION_CREATED_AT, 'ASC')
-        ->select(
-            Distributions::COL_DISTRIBUTION_ID,
-            Distributions::COL_DISTRIBUTION_REQUEST_ID,
-            Distributions::COL_DISTRIBUTION_PAYLOAD,
-            Distributions::COL_DISTRIBUTION_TRIES,
-            Distributions::COL_DISTRIBUTION_JOB_NAME,
-            Distributions::COL_DISTRIBUTION_PRIORITY,
-        )
-        ->when($globalLimit < PHP_INT_MAX / 10, function ($q) use ($globalLimit) {
-            $q->limit(min($globalLimit * 10, 10000));
-        })
-        ->get();
+        $scope = $this->initScope($jobName, $requestId);
+        $candidates = $this->buildCandidates($scope, $globalLimit);
 
-        return $this->fairDistribute($data, $globalLimit)->toArray();
+        return $this->fairDistribute($candidates, $globalLimit)->toArray();
     }
 
     public function searchAndLock($jobName, $requestId = null, $globalLimit = PHP_INT_MAX)
     {
         return DB::transaction(function () use ($jobName, $requestId, $globalLimit) {
-            $where = [
-                Distributions::COL_DISTRIBUTION_JOB_NAME => $jobName,
-                Distributions::COL_DISTRIBUTION_CURRENT_STATE => DistributionStates::DISTRIBUTION_STATES_INIT,
-            ];
-            if ($requestId) {
-                $where[Distributions::COL_DISTRIBUTION_REQUEST_ID] = $requestId;
-            }
-
-            // Step 1: SELECT without lock to get candidate IDs
-            $candidates = Distributions::where($where)
-            ->orderBy(Distributions::COL_DISTRIBUTION_PRIORITY, 'DESC')
-            ->orderBy(Distributions::COL_DISTRIBUTION_CREATED_AT, 'ASC')
-            ->select(
-                Distributions::COL_DISTRIBUTION_ID,
-                Distributions::COL_DISTRIBUTION_REQUEST_ID,
-                Distributions::COL_DISTRIBUTION_PAYLOAD,
-                Distributions::COL_DISTRIBUTION_TRIES,
-                Distributions::COL_DISTRIBUTION_JOB_NAME,
-                Distributions::COL_DISTRIBUTION_PRIORITY,
-            )
-            ->when($globalLimit < PHP_INT_MAX / 10, function ($q) use ($globalLimit) {
-                $q->limit(min($globalLimit * 10, 10000));
-            })
-            ->get();
-
-            // Step 2: fairDistribute to pick the batch
+            $scope = $this->initScope($jobName, $requestId);
+            $candidates = $this->buildCandidates($scope, $globalLimit);
             $distributed = $this->fairDistribute($candidates, $globalLimit);
 
-            if ($distributed->isEmpty()) {
-                return [];
-            }
-
-            // Step 3: Lock only the selected batch rows
-            // SKIP LOCKED (MySQL 8.0+/PostgreSQL) prevents lock-wait cascading
-            $ids = $distributed->pluck(Distributions::COL_DISTRIBUTION_ID)->toArray();
-            $driver = DB::connection()->getDriverName();
-            $lockQuery = Distributions::whereIn(Distributions::COL_DISTRIBUTION_ID, $ids)
-                ->where(Distributions::COL_DISTRIBUTION_CURRENT_STATE, DistributionStates::DISTRIBUTION_STATES_INIT);
-
-            if ($driver === 'sqlite') {
-                $locked = $lockQuery->lockForUpdate()
-                    ->pluck(Distributions::COL_DISTRIBUTION_ID)->toArray();
-            } else {
-                $locked = $lockQuery->lock('FOR UPDATE SKIP LOCKED')
-                    ->pluck(Distributions::COL_DISTRIBUTION_ID)->toArray();
-            }
-
-            // Filter to only those still in 'initial' state
-            $distributed = $distributed->filter(function ($item) use ($locked) {
-                return in_array($item[Distributions::COL_DISTRIBUTION_ID], $locked);
-            })->values();
-
-            if ($distributed->isNotEmpty()) {
-                $now = now();
-                $states = $distributed->map(function ($item) use ($now) {
-                    return [
-                        DistributionStates::COL_FK_DISTRIBUTION_ID => $item[Distributions::COL_DISTRIBUTION_ID],
-                        DistributionStates::COL_DISTRIBUTION_STATE_VALUE => DistributionStates::DISTRIBUTION_STATES_PUSHED,
-                        DistributionStates::COL_DISTRIBUTION_STATE_CREATED_AT => $now,
-                    ];
-                })->toArray();
-                DistributionStates::insert($states);
-
-                // Write-through: update distribution_current_state + updated_at
-                Distributions::whereIn(Distributions::COL_DISTRIBUTION_ID, $locked)
-                    ->update([
-                        Distributions::COL_DISTRIBUTION_CURRENT_STATE => DistributionStates::DISTRIBUTION_STATES_PUSHED,
-                        Distributions::COL_DISTRIBUTION_UPDATED_AT => $now,
-                    ]);
-            }
-
-            return $distributed->toArray();
-        }, 3); // Retry up to 3 times on deadlock
+            return $this->lockAndTransition($distributed, DistributionStates::DISTRIBUTION_STATES_INIT);
+        }, 3);
     }
 
     public function searchBackLog($jobName, $requestId = null, $tries = 3, $timeRange = 1, $globalLimit = PHP_INT_MAX)
     {
-        $where = [
-            Distributions::COL_DISTRIBUTION_JOB_NAME => $jobName,
-            Distributions::COL_DISTRIBUTION_CURRENT_STATE => DistributionStates::DISTRIBUTION_STATES_FAILED,
-        ];
-        if ($requestId) {
-            $where[Distributions::COL_DISTRIBUTION_REQUEST_ID] = $requestId;
-        }
+        $scope = $this->backlogScope($jobName, $requestId, $tries, $timeRange);
+        $candidates = $this->buildCandidates($scope, $globalLimit);
 
-        $hourAgo = Carbon::now()->subHours($timeRange);
-        $data = Distributions::where($where)
-        ->where(Distributions::COL_DISTRIBUTION_TRIES, '<', $tries)
-        ->where(Distributions::COL_DISTRIBUTION_UPDATED_AT, '<', $hourAgo)
-        ->orderBy(Distributions::COL_DISTRIBUTION_PRIORITY, 'DESC')
-        ->orderBy(Distributions::COL_DISTRIBUTION_CREATED_AT, 'ASC')
-        ->select(
-            Distributions::COL_DISTRIBUTION_ID,
-            Distributions::COL_DISTRIBUTION_REQUEST_ID,
-            Distributions::COL_DISTRIBUTION_PAYLOAD,
-            Distributions::COL_DISTRIBUTION_TRIES,
-            Distributions::COL_DISTRIBUTION_JOB_NAME,
-            Distributions::COL_DISTRIBUTION_PRIORITY,
-        )
-        ->when($globalLimit < PHP_INT_MAX / 10, function ($q) use ($globalLimit) {
-            $q->limit(min($globalLimit * 10, 10000));
-        })
-        ->get();
-
-        return $this->fairDistribute($data, $globalLimit)->toArray();
+        return $this->fairDistribute($candidates, $globalLimit)->toArray();
     }
 
     public function searchBackLogAndLock($jobName, $requestId = null, $tries = 3, $timeRange = 1, $globalLimit = PHP_INT_MAX)
     {
         return DB::transaction(function () use ($jobName, $requestId, $tries, $timeRange, $globalLimit) {
-            $where = [
-                Distributions::COL_DISTRIBUTION_JOB_NAME => $jobName,
-                Distributions::COL_DISTRIBUTION_CURRENT_STATE => DistributionStates::DISTRIBUTION_STATES_FAILED,
-            ];
+            $scope = $this->backlogScope($jobName, $requestId, $tries, $timeRange);
+            $candidates = $this->buildCandidates($scope, $globalLimit);
+            $distributed = $this->fairDistribute($candidates, $globalLimit);
+
+            return $this->lockAndTransition($distributed, DistributionStates::DISTRIBUTION_STATES_FAILED);
+        }, 3);
+    }
+
+    // ── Private helpers ──────────────────────────────────────
+
+    private const MAX_QUERY_LIMIT = 10000;
+
+    private function initScope(string $jobName, ?string $requestId): \Closure
+    {
+        return function ($q) use ($jobName, $requestId) {
+            $q->where(Distributions::COL_DISTRIBUTION_JOB_NAME, $jobName)
+              ->where(Distributions::COL_DISTRIBUTION_CURRENT_STATE, DistributionStates::DISTRIBUTION_STATES_INIT);
             if ($requestId) {
-                $where[Distributions::COL_DISTRIBUTION_REQUEST_ID] = $requestId;
+                $q->where(Distributions::COL_DISTRIBUTION_REQUEST_ID, $requestId);
             }
+        };
+    }
 
-            $hourAgo = Carbon::now()->subHours($timeRange);
+    private function backlogScope(string $jobName, ?string $requestId, int $tries, int $timeRange): \Closure
+    {
+        $hourAgo = Carbon::now()->subHours($timeRange);
 
-            // Step 1: SELECT without lock
-            $candidates = Distributions::where($where)
-            ->where(Distributions::COL_DISTRIBUTION_TRIES, '<', $tries)
-            ->where(Distributions::COL_DISTRIBUTION_UPDATED_AT, '<', $hourAgo)
+        return function ($q) use ($jobName, $requestId, $tries, $hourAgo) {
+            $q->where(Distributions::COL_DISTRIBUTION_JOB_NAME, $jobName)
+              ->where(Distributions::COL_DISTRIBUTION_CURRENT_STATE, DistributionStates::DISTRIBUTION_STATES_FAILED)
+              ->where(Distributions::COL_DISTRIBUTION_TRIES, '<', $tries)
+              ->where(Distributions::COL_DISTRIBUTION_UPDATED_AT, '<', $hourAgo);
+            if ($requestId) {
+                $q->where(Distributions::COL_DISTRIBUTION_REQUEST_ID, $requestId);
+            }
+        };
+    }
+
+    private function buildCandidates(callable $scope, int $globalLimit): Collection
+    {
+        $query = Distributions::query()
             ->orderBy(Distributions::COL_DISTRIBUTION_PRIORITY, 'DESC')
             ->orderBy(Distributions::COL_DISTRIBUTION_CREATED_AT, 'ASC')
             ->select(
@@ -182,59 +98,57 @@ class DistributionRepository extends BaseSqlRepository
                 Distributions::COL_DISTRIBUTION_TRIES,
                 Distributions::COL_DISTRIBUTION_JOB_NAME,
                 Distributions::COL_DISTRIBUTION_PRIORITY,
-            )
-            ->when($globalLimit < PHP_INT_MAX / 10, function ($q) use ($globalLimit) {
-                $q->limit(min($globalLimit * 10, 10000));
-            })
-            ->get();
+            );
 
-            // Step 2: fairDistribute
-            $distributed = $this->fairDistribute($candidates, $globalLimit);
+        $scope($query);
 
-            if ($distributed->isEmpty()) {
-                return [];
-            }
+        if ($globalLimit < PHP_INT_MAX / 10) {
+            $query->limit(min($globalLimit * 10, self::MAX_QUERY_LIMIT));
+        }
 
-            // Step 3: Lock only the batch rows
-            // SKIP LOCKED (MySQL 8.0+/PostgreSQL) prevents lock-wait cascading
-            $ids = $distributed->pluck(Distributions::COL_DISTRIBUTION_ID)->toArray();
-            $driver = DB::connection()->getDriverName();
-            $lockQuery = Distributions::whereIn(Distributions::COL_DISTRIBUTION_ID, $ids)
-                ->where(Distributions::COL_DISTRIBUTION_CURRENT_STATE, DistributionStates::DISTRIBUTION_STATES_FAILED);
+        return $query->get();
+    }
 
-            if ($driver === 'sqlite') {
-                $locked = $lockQuery->lockForUpdate()
-                    ->pluck(Distributions::COL_DISTRIBUTION_ID)->toArray();
-            } else {
-                $locked = $lockQuery->lock('FOR UPDATE SKIP LOCKED')
-                    ->pluck(Distributions::COL_DISTRIBUTION_ID)->toArray();
-            }
+    private function lockAndTransition(Collection $distributed, string $expectedState): array
+    {
+        if ($distributed->isEmpty()) {
+            return [];
+        }
 
-            $distributed = $distributed->filter(function ($item) use ($locked) {
-                return in_array($item[Distributions::COL_DISTRIBUTION_ID], $locked);
-            })->values();
+        $ids = $distributed->pluck(Distributions::COL_DISTRIBUTION_ID)->toArray();
+        $driver = DB::connection()->getDriverName();
 
-            if ($distributed->isNotEmpty()) {
-                $now = now();
-                $states = $distributed->map(function ($item) use ($now) {
-                    return [
-                        DistributionStates::COL_FK_DISTRIBUTION_ID => $item[Distributions::COL_DISTRIBUTION_ID],
-                        DistributionStates::COL_DISTRIBUTION_STATE_VALUE => DistributionStates::DISTRIBUTION_STATES_PUSHED,
-                        DistributionStates::COL_DISTRIBUTION_STATE_CREATED_AT => $now,
-                    ];
-                })->toArray();
-                DistributionStates::insert($states);
+        $lockQuery = Distributions::whereIn(Distributions::COL_DISTRIBUTION_ID, $ids)
+            ->where(Distributions::COL_DISTRIBUTION_CURRENT_STATE, $expectedState);
 
-                // Write-through: update distribution_current_state + updated_at
-                Distributions::whereIn(Distributions::COL_DISTRIBUTION_ID, $locked)
-                    ->update([
-                        Distributions::COL_DISTRIBUTION_CURRENT_STATE => DistributionStates::DISTRIBUTION_STATES_PUSHED,
-                        Distributions::COL_DISTRIBUTION_UPDATED_AT => $now,
-                    ]);
-            }
+        $locked = ($driver === 'sqlite')
+            ? $lockQuery->lockForUpdate()->pluck(Distributions::COL_DISTRIBUTION_ID)->toArray()
+            : $lockQuery->lock('FOR UPDATE SKIP LOCKED')->pluck(Distributions::COL_DISTRIBUTION_ID)->toArray();
 
-            return $distributed->toArray();
-        }, 3); // Retry up to 3 times on deadlock
+        $lockedSet = array_flip($locked);
+        $distributed = $distributed->filter(function ($item) use ($lockedSet) {
+            return isset($lockedSet[$item[Distributions::COL_DISTRIBUTION_ID]]);
+        })->values();
+
+        if ($distributed->isNotEmpty()) {
+            $now = now();
+
+            DistributionStates::insert($distributed->map(function ($item) use ($now) {
+                return [
+                    DistributionStates::COL_FK_DISTRIBUTION_ID => $item[Distributions::COL_DISTRIBUTION_ID],
+                    DistributionStates::COL_DISTRIBUTION_STATE_VALUE => DistributionStates::DISTRIBUTION_STATES_PUSHED,
+                    DistributionStates::COL_DISTRIBUTION_STATE_CREATED_AT => $now,
+                ];
+            })->toArray());
+
+            Distributions::whereIn(Distributions::COL_DISTRIBUTION_ID, $locked)
+                ->update([
+                    Distributions::COL_DISTRIBUTION_CURRENT_STATE => DistributionStates::DISTRIBUTION_STATES_PUSHED,
+                    Distributions::COL_DISTRIBUTION_UPDATED_AT => $now,
+                ]);
+        }
+
+        return $distributed->toArray();
     }
 
     public function countByStatus($status, $jobName = null)
@@ -260,19 +174,19 @@ class DistributionRepository extends BaseSqlRepository
             return $group->max(Distributions::COL_DISTRIBUTION_PRIORITY);
         });
 
-        $remaining = $globalLimit;
-        $result = collect();
+        // Clamp to item count — eliminates overflow when globalLimit = PHP_INT_MAX
+        $remaining = min($globalLimit, $items->count());
+        $selected = [];
 
         // Pass 1: fair allocation — each group gets ceil(remaining / groupsLeft)
         $groupsLeft = $groups->count();
         $groupRemainders = [];
 
         foreach ($groups as $requestId => $group) {
-            $slotsPerGroup = $remaining >= PHP_INT_MAX
-                ? $group->count()
-                : (int) ceil($remaining / max($groupsLeft, 1));
-            $take = (int) min($slotsPerGroup, $group->count(), $remaining);
-            $result = $result->concat($group->take($take));
+            $perGroup = (int) ceil($remaining / max($groupsLeft, 1));
+            $take = min($perGroup, $group->count(), $remaining);
+
+            array_push($selected, ...$group->take($take)->all());
             $remaining -= $take;
             $groupsLeft--;
 
@@ -286,77 +200,61 @@ class DistributionRepository extends BaseSqlRepository
         }
 
         // Pass 2: redistribute leftover slots to groups with remaining items
-        if ($remaining > 0 && !empty($groupRemainders)) {
-            foreach ($groupRemainders as $leftover) {
-                if ($remaining <= 0) {
-                    break;
-                }
-                $take = (int) min($leftover->count(), $remaining);
-                $result = $result->concat($leftover->take($take));
-                $remaining -= $take;
+        foreach ($groupRemainders as $leftover) {
+            if ($remaining <= 0) {
+                break;
             }
+            $take = min($leftover->count(), $remaining);
+            array_push($selected, ...$leftover->take($take)->all());
+            $remaining -= $take;
         }
 
-        return $result->map(function ($item) {
+        return collect($selected)->map(function ($item) {
             return $item instanceof \Illuminate\Database\Eloquent\Model ? $item->toArray() : $item;
         })->values();
     }
 
-    public function getStats(string $jobName = null): array
+    public function getStats(?string $jobName = null): array
     {
+        // GROUP BY order matches index (current_state, job_name) → index-only scan
         $query = Distributions::select(
-                Distributions::COL_DISTRIBUTION_JOB_NAME . ' as job',
+                Distributions::COL_DISTRIBUTION_JOB_NAME . ' as group_key',
                 Distributions::COL_DISTRIBUTION_CURRENT_STATE . ' as state',
                 DB::raw('COUNT(*) as cnt')
             )
-            ->groupBy(Distributions::COL_DISTRIBUTION_JOB_NAME, Distributions::COL_DISTRIBUTION_CURRENT_STATE);
+            ->groupBy(Distributions::COL_DISTRIBUTION_CURRENT_STATE, Distributions::COL_DISTRIBUTION_JOB_NAME);
 
         if ($jobName) {
             $query->where(Distributions::COL_DISTRIBUTION_JOB_NAME, $jobName);
         }
 
-        $rows = $query->get();
-
-        $grouped = [];
-        foreach ($rows as $row) {
-            $grouped[$row->job][$row->state] = $row->cnt;
-        }
-
-        $result = [];
-        foreach ($grouped as $job => $stateCounts) {
-            $row = ['job' => $job];
-            $total = 0;
-            foreach (DistributionStates::ALL_STATES as $state) {
-                $count = $stateCounts[$state] ?? 0;
-                $row[$state] = $count;
-                $total += $count;
-            }
-            $row['total'] = $total;
-            $result[] = $row;
-        }
-
-        return $result;
+        return $this->aggregateStats($query->get(), 'job');
     }
 
     public function getStatsByRequestId(string $jobName): array
     {
         $rows = Distributions::where(Distributions::COL_DISTRIBUTION_JOB_NAME, $jobName)
             ->select(
-                Distributions::COL_DISTRIBUTION_REQUEST_ID . ' as request_id',
+                Distributions::COL_DISTRIBUTION_REQUEST_ID . ' as group_key',
                 Distributions::COL_DISTRIBUTION_CURRENT_STATE . ' as state',
                 DB::raw('COUNT(*) as cnt')
             )
             ->groupBy(Distributions::COL_DISTRIBUTION_REQUEST_ID, Distributions::COL_DISTRIBUTION_CURRENT_STATE)
             ->get();
 
+        return $this->aggregateStats($rows, 'request_id');
+    }
+
+    private function aggregateStats(Collection $rows, string $label): array
+    {
         $grouped = [];
         foreach ($rows as $row) {
-            $grouped[$row->request_id][$row->state] = $row->cnt;
+            $grouped[$row->group_key][$row->state] = $row->cnt;
         }
 
         $result = [];
-        foreach ($grouped as $requestId => $stateCounts) {
-            $row = ['request_id' => $requestId];
+        foreach ($grouped as $key => $stateCounts) {
+            $row = [$label => $key];
             $total = 0;
             foreach (DistributionStates::ALL_STATES as $state) {
                 $count = $stateCounts[$state] ?? 0;
@@ -370,7 +268,7 @@ class DistributionRepository extends BaseSqlRepository
         return $result;
     }
 
-    public function getRecentFailures(string $jobName = null, int $limit = 20): array
+    public function getRecentFailures(?string $jobName = null, int $limit = 20): array
     {
         $query = Distributions::where(
             Distributions::COL_DISTRIBUTION_CURRENT_STATE,
@@ -423,23 +321,28 @@ class DistributionRepository extends BaseSqlRepository
 
         try {
             return DB::transaction(function () use ($distributions, $now) {
-                $ids = [];
-                foreach ($distributions as $distribution) {
-                    $insertResponse = Distributions::create($distribution);
-                    if ($insertResponse) {
-                        $ids[] = $insertResponse->{Distributions::COL_DISTRIBUTION_ID};
+                // Batch insert distributions in chunks (1 query per 500 instead of N queries)
+                $allIds = [];
+                foreach (array_chunk($distributions, 500) as $chunk) {
+                    Distributions::insert($chunk);
+
+                    // Retrieve inserted IDs — last N auto-increment IDs
+                    $lastId = DB::getPdo()->lastInsertId();
+                    $count = count($chunk);
+                    for ($i = 0; $i < $count; $i++) {
+                        $allIds[] = $lastId + $i;
                     }
                 }
 
-                // Batch insert all states at once (1 query instead of N)
-                if (!empty($ids)) {
+                // Batch insert all states
+                if (!empty($allIds)) {
                     $states = array_map(function ($id) use ($now) {
                         return [
                             DistributionStates::COL_FK_DISTRIBUTION_ID => $id,
                             DistributionStates::COL_DISTRIBUTION_STATE_VALUE => DistributionStates::DISTRIBUTION_STATES_INIT,
                             DistributionStates::COL_DISTRIBUTION_STATE_CREATED_AT => $now,
                         ];
-                    }, $ids);
+                    }, $allIds);
 
                     foreach (array_chunk($states, 500) as $chunk) {
                         DistributionStates::insert($chunk);
