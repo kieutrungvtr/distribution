@@ -54,7 +54,7 @@ class DistributionWorkCommandTest extends TestCase
         DistributionFactory::markState($id, DistributionStates::DISTRIBUTION_STATES_PUSHED);
         DistributionFactory::markState($id, DistributionStates::DISTRIBUTION_STATES_FAILED, Carbon::now()->subHours(2));
 
-        $this->artisan('distribution:work', ['--once' => true, '--tries' => 3, '--range' => 1])
+        $this->artisan('distribution:work', ['--once' => true, '--tries' => 3, '--range' => 1, '--auto-retry' => true])
              ->assertSuccessful();
 
         $updated = Distributions::find($id);

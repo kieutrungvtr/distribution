@@ -11,6 +11,7 @@ return [
         'sleep' => env('DISTRIBUTION_WORKER_SLEEP', 5),
         'tries' => env('DISTRIBUTION_BACKLOG_TRIES', 3),
         'range' => env('DISTRIBUTION_BACKLOG_RANGE', 1),
+        'auto_retry' => env('DISTRIBUTION_AUTO_RETRY', false),
         'memory_limit' => env('DISTRIBUTION_WORKER_MEMORY_LIMIT', 128), // MB
     ],
 
